@@ -19,7 +19,7 @@ const seedItems = (count = 25) => {
     'Status Reporter',
     'Release Notes',
     'QA Checklist',
-    'Bug Triage',
+    'Bug Triage',    
     'Timesheet Export',
     'Email Digest',
     'Audit Log',
