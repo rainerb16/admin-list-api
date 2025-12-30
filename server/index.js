@@ -7,6 +7,7 @@ app.use(cors({ origin: true}));
 
 const STATUSES = ['active', 'paused', 'archived'];
 const CATEGORIES = ['general', 'work', 'personal'];
+const PRIORITIES = ['low', 'medium', 'high'];
 
 const normalizeString = (value) => (typeof value === 'string' ? value.trim() : '');
 
@@ -51,6 +52,7 @@ const seedItems = (count = 25) => {
     const name = namePool[idx % namePool.length];
     const status = STATUSES[idx % STATUSES.length];
     const category = CATEGORIES[idx % CATEGORIES.length];
+    const priority = PRIORITIES[idx % PRIORITIES.length];
 
     const createdAt = new Date(now - (idx * 2 + 1) * oneDay).toISOString();
 
@@ -61,6 +63,7 @@ const seedItems = (count = 25) => {
       name: `${name} #${id}`,
       status,
       category,
+      priority,
       createdAt,
       notes,
     };
@@ -78,6 +81,7 @@ app.get('/items', (req, res) => {
   const q = normalizeString(req.query.q);
   const status = normalizeString(req.query.status);
   const category = normalizeString(req.query.category);
+  const priority = normalizeString(req.query.priority);
 
   const sort = normalizeString(req.query.sort) || 'createdAt';
   const order = (normalizeString(req.query.order) || 'desc').toLowerCase();
@@ -91,8 +95,11 @@ app.get('/items', (req, res) => {
   if (category && !CATEGORIES.includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
+  if (priority && !PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: 'Invalid priority' });
+  }
 
-  const allowedSort = ['createdAt', 'name', 'status'];
+  const allowedSort = ['createdAt', 'name', 'status','priority'];
   if (!allowedSort.includes(sort)) {
     return res.status(400).json({ error: 'Invalid sort field' });
   }
@@ -104,6 +111,7 @@ app.get('/items', (req, res) => {
 
   if (status) results = results.filter((item) => item.status === status);
   if (category) results = results.filter((item) => item.category === category);
+  if (priority) results = results.filter((item) => item.priority === priority);
 
   if (q) {
     results = results.filter(
@@ -111,20 +119,25 @@ app.get('/items', (req, res) => {
     );
   }
 
+  const priorityRank = { low: 1, medium: 2, high: 3 };
+
   results.sort((a, b) => {
     let av = a[sort];
     let bv = b[sort];
 
-    if (sort === 'createdAt') {
+    if (sort === "createdAt") {
       av = new Date(av).getTime();
       bv = new Date(bv).getTime();
+    } else if (sort === "priority") {
+      av = priorityRank[String(av).toLowerCase()] ?? 0;
+      bv = priorityRank[String(bv).toLowerCase()] ?? 0;
     } else {
-      av = String(av).toLowerCase();
-      bv = String(bv).toLowerCase();
+      av = String(av ?? "").toLowerCase();
+      bv = String(bv ?? "").toLowerCase();
     }
 
-    if (av < bv) return order === 'asc' ? -1 : 1;
-    if (av > bv) return order === 'asc' ? 1 : -1;
+    if (av < bv) return order === "asc" ? -1 : 1;
+    if (av > bv) return order === "asc" ? 1 : -1;
     return 0;
   });
 
@@ -157,17 +170,20 @@ app.post('/items', (req, res) => {
   const name = normalizeString(req.body?.name);
   const status = normalizeString(req.body?.status) || 'active';
   const category = normalizeString(req.body?.category) || 'general';
+  const priority = normalizeString(req.body?.priority) || 'medium';
   const notes = normalizeString(req.body?.notes);
 
   if (!name) return res.status(400).json({ error: 'name is required' });
   if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
   if (!CATEGORIES.includes(category)) return res.status(400).json({ error: 'Invalid category' });
+  if (!PRIORITIES.includes(priority)) return res.status(400).json({ error: 'Invalid priority' });
 
   const created = {
     id: nextId++,
     name,
     status,
     category,
+    priority,
     createdAt: new Date().toISOString(),
     notes,
   };
@@ -186,6 +202,7 @@ app.patch('/items/:id', (req, res) => {
   const name = req.body?.name !== undefined ? normalizeString(req.body.name) : undefined;
   const status = req.body?.status !== undefined ? normalizeString(req.body.status) : undefined;
   const category = req.body?.category !== undefined ? normalizeString(req.body.category) : undefined;
+  const priority = req.body?.priority !== undefined ? normalizeString(req.body.priority) : undefined;
   const notes = req.body?.notes !== undefined ? normalizeString(req.body.notes) : undefined;
 
   if (name !== undefined && !name) return res.status(400).json({ error: 'name cannot be empty' });
@@ -193,10 +210,13 @@ app.patch('/items/:id', (req, res) => {
     return res.status(400).json({ error: 'Invalid status' });
   if (category !== undefined && !CATEGORIES.includes(category))
     return res.status(400).json({ error: 'Invalid category' });
+  if (priority !== undefined && !PRIORITIES.includes(priority))
+    return res.status(400).json({ error: 'Invalid priority' });
 
   if (name !== undefined) item.name = name;
   if (status !== undefined) item.status = status;
   if (category !== undefined) item.category = category;
+  if (priority !== undefined) item.priority = priority;
   if (notes !== undefined) item.notes = notes;
 
   res.json(item);
