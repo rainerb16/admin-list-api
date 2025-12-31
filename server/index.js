@@ -6,6 +6,7 @@ app.use(express.json());
 
 const allowed = [
   'http://localhost:3000',
+  'http://localhost:5173',
   'https://admin-list-rainer.netlify.app',
 ]
 app.use(cors({
