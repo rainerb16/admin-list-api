@@ -3,7 +3,18 @@ const cors = require('cors');
 
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: true}));
+
+const allowed = [
+  'http://localhost:3000',
+  'https://admin-list-rainer.netlify.app',
+]
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowed.includes(origin)) return cb(null, true);
+    return cb(new Error("Not allowed by CORS"));
+  }
+}));
 
 const STATUSES = ['active', 'paused', 'archived'];
 const CATEGORIES = ['general', 'work', 'personal'];
